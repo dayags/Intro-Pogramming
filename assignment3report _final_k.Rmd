@@ -1,0 +1,137 @@
+```{r}
+#PART I
+
+  yeast_orf<-read.table("yeast_orflist.txt", header=T, sep = "\t", fill = T, comment.char = "", quote = "", stringsAsFactors = F)
+
+min=1
+max=1
+for(i in 2:nrow(yeast_orf))
+{
+if (yeast_orf$Length[min]>yeast_orf$Length[i])   min=i
+if (yeast_orf$Length[max]<yeast_orf$Length[i])   max=i
+}
+yeast_orf$ORF[c(min,max)]
+
+yeast_orf$ORF[c(which.min(yeast_orf$Length),which.max(yeast_orf$Length))]
+
+#YJR151W-A - shortest gene, uncharacterized, speculated to have a role in trancription
+#YLR106C -  longest gene, very large dynein related ATPase, involved in ribosomal biogenesis.
+
+# Kevin - Are you sure you need to worry about the C-C case? In the assignment question, it says you just need to worry about the last character. Also, here you might want to use endsWith() as it's much easier to understand.
+
+
+cat(as.character(yeast_orf$ORF[endsWith(yeast_orf$ORF, "C")]), file = "yeast_crickstrand_genes.txt")
+
+cat(as.character(yeast_orf$ORF[endsWith(yeast_orf$ORF, "W")]), file = "yeast_watsonstrand_genes.txt")
+
+mean(yeast_orf$Length[1:length(yeast_orf$Length)])
+#1345.176
+```
+
+```{r}
+#Part II
+#a
+yeast_interactions<-read.delim("yeast_interactions.txt", header = T, sep = "\t", fill = T, comment.char = "", quote = "", as.is = T)
+
+phenotype_data<-read.delim("phenotype_data.tab", sep = "\t", header = F, fill = T, comment.char = "", quote = "", as.is = T)
+
+yeast_interactions
+phenotype_data
+PMIDs<-unique(phenotype_data[,5])
+length(PMIDs)
+#There are 5880 unique PMIDs that contributed to the phenotype data
+
+f_PMIDs<-as.factor(PMIDs)
+levels(f_PMIDs)
+#converting back to a factor and checking number of levels, which would be possible PMID values. 
+
+#b
+essential_genes=unique(phenotype_data$V1[grep("inviable", phenotype_data[,10])])
+
+#c
+orfs <- c(yeast_interactions$INTERACTOR_A,yeast_interactions$INTERACTOR_B)
+orfs <- unique(orfs)
+
+#working with a subset, will change to the full list once it is working
+subset_orfs <- orfs[1:100]
+
+n_interactions_list <- list()
+for(i in 1:length(subset_orfs)){
+  orf <- subset_orfs[i]
+
+  inters <- yeast_interactions[yeast_interactions$INTERACTOR_A == orf
+| yeast_interactions$INTERACTOR_B == orf,]
+  inters <- inters[,1:2]
+ #Sorts the names so that you don't count interactions listed in different order twice
+ sorted_inters <- t(apply(inters,1,sort))
+  unique_inters <- unique(sorted_inters)
+  n_interactions <- nrow(unique_inters)
+  n_interactions_list[[orf]] <- n_interactions
+}
+
+#Unlist to make it a regular vector
+n_interactions_vector <- unlist(n_interactions_list)
+#Calculate mean number of interactions
+mean(n_interactions_vector)
+
+#d
+# Kevin
+# <-- you can replace this part
+#essential genes are defined in part II b. 
+# essential_orf=c()
+# for(i in 1:length(essential_genes)){
+#   essential_orf <- c(essential_orf, essential_genes[i])
+#   # Kevin - you're overwriting this vector each iteration. If you want to store all of them, you need to append it to a vector.
+#   #Previously I did not want to store all of them - I wanted to do something like in part II c, where "orf" is constantly replaced. I changed it now though. 
+# }
+#  n_essen_inters=c()
+# for (i in 1:length(essential_orf)){
+#   n_essen_inters = c(n_essen_inters, n_interactions_vector[essential_orf[i]])  # Kevin - here are you are extracting a name called "essential_orf", which is not exist in your vector.
+#   #would this work?
+# }
+# n_essen_inters_withoutNA<-n_essen_inters[!is.na(n_essen_inters)]
+# <-- you can replace this part with this
+n_essen_inters_withoutNA < - n_interactions_vector[names(n_interactions_vector) %in% essential_genes]
+
+mean(n_essen_inters_withoutNA)
+#mean number of interaction in essential genes: [1] 94.08571
+print(n_essen_inters_withoutNA)
+
+
+```
+```{r}
+nonessential_genes=unique(phenotype_data$V1[grep("[^(inviable)]",phenotype_data[,10])])
+
+# n_nonessen_inters=c()
+# for (i in 1:length(nonessential_genes)){
+#   n_nonessen_inters = c(n_nonessen_inters, n_interactions_vector[nonessential_genes[i]])  # Kevin - here are you are extracting a name called "essential_orf", which is not exist in your vector.
+# }
+# n_nonessen_inters_withoutNA<-n_nonessen_inters[!is.na(n_nonessen_inters)]
+
+n_nonessen_inters_withoutNA < - n_interactions_vector[names(n_interactions_vector) %in% nonessential_genes]
+mean(n_nonessen_inters_withoutNA)
+
+#Mean number of interactions in nonessntial genes [1] 124.34, which is might be expected. Although perhaps can be explained by the fact that manipulation of essential genes are hard, as they cause inviability. Calculating standard deviations and ploting histograms for the distributions shows that few essential genes can contain extremely high number of interactions. 
+
+sd(n_essen_inters_withoutNA)
+#99.20258
+sd(n_nonessen_inters_withoutNA)
+#110.2528
+
+hist(n_essen_inters_withoutNA, col=rgb(1,0,0,0.5), main="Overlapping Histogram", xlab="Variable")
+hist(n_nonessen_inters_withoutNA, col=rgb(0,0,0,0.5), add=T)
+box()
+```
+
+
+
+
+```{r}
+#Part III
+goslim<-read.delim("go_slim_mapping.tab", header = F, sep = "\t", fill = T, comment.char = "", quote = "", as.is = T)
+goslim=as.data.frame(goslim)
+head(goslim)
+goslim$V1[grep("cellular bud", goslim$V5)]
+```
+
+
